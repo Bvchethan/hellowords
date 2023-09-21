@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">  
+    <title>Simple Dictionary</title>
+    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"/>
+  </head>
+  <body>
+    <h1 class="dict">Dictionary</h1>
+   
+    <div class="wrapper">
+      <header>simple Dictionary :)</header>
+      <div class="search">
+        
+        <input type="text" placeholder="type any word" required spellcheck="false">
+        
+        <span class="material-icons">close</span>
+        <button id="search-button">Search</button>
+      </div>
+      <p class="info-text">type any english word and click on search to  get its meaning , example , synonym etc.</p>
+      <ul>
+        <li class="word">
+          <div class="details">
+            <p>__</p>
+            <span>__</span>
+          </div>
+          <i class="fas fa-volume-up"></i>
+        </li>
+        <div class="content">
+          <li class="meaning">
+            <div class="details">
+              <p>Meaning</p>
+              <span>___</span>
+            </div>
+          </li>
+          <li class="example">
+            <div class="details">
+              <p>Example</p>
+              <span>___</span>
+            </div>
+          </li>
+          <li class="synonyms">
+            <div class="details">
+              <p>Synonyms</p>
+              <div class="list"></div>
+            </div>
+          </li>
+        </div>
+      </ul>
+    </div>
+    <div class="info">
+      A simple Dictionary which allows you to search english words and  get its information like meanings , examples , synonyms and pronouncation etc basically a simple Dictionary.
+    </div>
+
+    <script src="script.js"></script>
+
+  </body>
+</html>
