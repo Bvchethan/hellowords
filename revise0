@@ -1,0 +1,101 @@
+📌 Key Study Areas
+JWT Security & Logout  
+Stateless authentication, JWT denylist/blacklist, jti claim, API Gateway filters.
+
+Spring Scheduling in Clusters  
+@Scheduled, ShedLock, Quartz, distributed locks with Redis/DB.
+
+JPA N+1 Problem  
+Lazy vs eager loading, JOIN FETCH queries, custom repository methods.
+
+Spring Bean Scopes  
+Singleton services, thread safety, avoiding shared mutable state.
+
+Transactional Rollback Rules  
+Checked vs unchecked exceptions, rollbackFor, AOP proxy limitations.
+
+Java Collections Contracts  
+HashMap key immutability, hashCode/equals rules, caching pitfalls.
+
+Concurrency & Atomic Operations  
+Volatile vs AtomicInteger, CAS operations, thread safety in counters.
+
+Java Exception Rules  
+Checked vs unchecked exceptions in overriding, compiler restrictions.
+
+Oracle Mutating Table Error  
+Row-level triggers, compound triggers, application-layer validation.
+
+PLSQL Bulk Operations  
+BULK COLLECT, FORALL, reducing context switches.
+
+Spring Validation Cascade  
+@Valid on nested collections, Hibernate Validator behavior.
+
+Spring Security Filters vs Controller Advice  
+Exception handling in filters, HandlerExceptionResolver.
+
+Spring Property Resolution Order  
+YAML vs @PropertySource, profile precedence, environment overrides.
+
+Spring Application Events
+
+
+
+
+. Spring Security & Web Layer Architecture
+Stateless Token Revocation Strategies: How to handle instantaneous user logout in decentralized architectures (e.g., using a Redis-backed token "denylist" at the API Gateway level to track a JWT's unique jti claim until its natural expiration).
+
+Filter Chain vs. MVC Dispatcher Lifecycle: Why global exception handlers like @RestControllerAdvice fail to intercept security filter exceptions (like a SignatureException during JWT validation), and how to route them using a HandlerExceptionResolver.
+
+Content Negotiation Mechanisms: How Spring MVC natively resolves request payloads and client responses (JSON vs. XML) based on the HTTP Accept header using HttpMessageConverters.
+
+Asynchronous Request Processing: Resolving thread pool exhaustion under heavy blocking I/O constraints by utilizing CompletableFuture or DeferredResult to free up primary Tomcat worker threads.
+
+2. Spring Core, Auto-Configuration, and AOP Internals
+The AOP Self-Invocation Pitfall: Understanding how Spring’s proxy mechanism works and why direct, internal method calls using the implicit this reference completely bypass proxies—rendering annotations like @Transactional(propagation = Propagation.REQUIRES_NEW) or @Cacheable ineffective.
+
+Singleton Bean State Contamination: The dangers of defining mutable, class-level states (such as an un-synchronized ArrayList) inside default @Service singleton beans, leading to data leaks across concurrent threads.
+
+Spring Boot Starter Component Overriding: The core mechanics of building custom Spring Boot Starters and applying @ConditionalOnMissingBean to allow downstream applications to seamlessly swap in their own customized implementations.
+
+Circular Dependencies Handling: Understanding why Spring Boot (as of 2.6+) strictly prohibits circular bean loops by default, and how to resolve them structurally (e.g., via event-driven pub/sub decoupling or a third orchestrator service) instead of using temporary @Lazy fixes.
+
+3. Spring Data JPA, Hibernate Cache & Transaction Lifecycles
+The N+1 Query Problem: Resolving performance bottlenecks and database I/O spikes caused by sequentially pulling related entities via lazy-loading proxies using optimized JOIN FETCH queries.
+
+Optimistic vs. Pessimistic Locking: Dealing with the "Lost Update" anomaly in concurrent web architectures using Hibernate's @Version annotation to prevent safe updates from getting overwritten, versus heavy database-level locking.
+
+First-Level Cache Memory Constraints: Understanding why the Hibernate Session holds onto strong memory references within a single transaction boundary, and how processing massive rows leads to an OutOfMemoryError (OOM) unless you regularly invoke flush() and clear() on the EntityManager.
+
+Transactional Exception Rules: The default behavior of @Transactional, which rolls back only on unchecked exceptions (RuntimeException), but commits transactions on checked exceptions (extending java.lang.Exception) unless explicitly configured with rollbackFor = Exception.class.
+
+Transaction-Bound Event Listeners: Ensuring side-effect actions that cannot be rolled back (like sending an automated email notification) strictly execute only upon database commit success by using @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT) instead of a standard @EventListener.
+
+JPA Entity Entity EqualityContracts: Overriding equals() and hashCode() inside entities that rely on database-generated primary keys (GenerationType.IDENTITY), and avoiding hash bucket pollution when states shift from transient to managed.
+
+4. Distributed Systems & Microservice Infrastructure
+Distributed Task Scheduling Locks: Preventing duplicate cron execution loops across load-balanced cloud instances or Kubernetes pods using distributed locking managers like ShedLock or Quartz.
+
+Distributed WebSocket Coordination: Solving the "split-brain" tracking issue in clustered environments (where multiple JVM nodes exist) by implementing an external full-featured message broker (like RabbitMQ) using a StompBrokerRelay.
+
+Spring Boot Actuator Health Aggregation: Tuning health indicators and isolations (e.g., disabling database health verification via management.health.db.enabled=false) to ensure short network blips to downstream dependencies do not cause Kubernetes liveness probes to falsely kill resilient pods.
+
+Spring Application Event Propagation: Recognizing that Spring’s default ApplicationEventPublisher blocks the publishing thread and runs listeners synchronously, and using @EnableAsync and @Async to create non-blocking execution lines.
+
+Spring Boot External Configuration Resolution: The precedence hierarchy of properties resolution—specifically why profile-specific YAML files (application-{profile}.yml) naturally override low-priority class configurations registered via @PropertySource.
+
+5. Java Core, PL/SQL, and Databases
+Compound Concurrency Operations: Why the volatile keyword guarantees main memory visibility but fails to guarantee atomicity for compound mutations (like post-increment operations ++), and applying lock-free AtomicInteger CAS instructions instead.
+
+Java Method Overriding Rules: The strict constraints compiler checks enforce regarding checked exceptions (e.g., an overriding child method cannot throw broader or new checked exceptions than the interface/parent signature).
+
+The String Constant Pool: Memory management regarding string literals vs. string objects instantiated via the new keyword, and how the == operator strictly evaluates memory pointer references rather than sequence content.
+
+Database Deadlocks & Resource Ordering: Resolving textbook circular-wait database deadlocks by introducing rigid, application-wide ordering rules for multi-table updates.
+
+Oracle Mutating Table Safeties (ORA-04091): The architectural rules of row-level database triggers, why they fail to select from the same table being updated mid-flux, and moving cross-row validation logic to the Spring service layer.
+
+PL/SQL Engine Context Switching: Resolving database performance bottlenecks caused by row-by-row explicit loops utilizing Oracle's performance-oriented BULK COLLECT INTO and FORALL array-binding syntax.
+
+Jakarta Cascade Validation: Understanding why nested collections or objects (like a List<ItemDTO>) ignore validation properties unless the collection field itself is explicitly marked with the @Valid cascade trigger.
