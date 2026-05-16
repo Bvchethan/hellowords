@@ -1,0 +1,93 @@
+Resilience patterns  
+Circuit Breaker, Retry, Timeout, Bulkhead — especially with Resilience4j in Spring Boot.
+
+Spring Data JPA optimization  
+Projections, DTOs, lazy vs eager fetching, pagination pitfalls, batch fetching.
+
+JVM memory management  
+String pooling (intern()), weak references (WeakHashMap), garbage collection behavior.
+
+Spring bean scopes  
+Singleton vs Prototype, dependency injection pitfalls, method injection (@Lookup), ObjectFactory.
+
+Idempotency in REST APIs  
+Idempotency keys, safe retry handling, payment gateway design.
+
+Distributed transactions  
+Saga pattern, compensating transactions, why 2PC/XA is discouraged in microservices.
+
+Spring Cloud Gateway  
+Rate limiting with Redis, custom KeyResolvers, JWT claim-based throttling.
+
+Hibernate pitfalls  
+JOIN FETCH with pagination, batch size, subselect strategies.
+
+Spring Data JPA lifecycle  
+First-level cache, flush() and clear(), testing with @DataJpaTest.
+
+Spring Security with async  
+ThreadLocal security context, DelegatingSecurityContextExecutor, inheritable thread locals.
+
+Micrometer metrics  
+High cardinality tags, best practices for Prometheus/Grafana, tracing vs metrics.
+
+Java Streams optimization  
+Parallel streams, encounter order, performance tuning.
+
+---
+
+### 1. Spring Data JPA & Hibernate Internals
+
+Several questions target severe performance anomalies and memory issues caused by default Hibernate behaviors.
+
+* **The $N+1$ Problem and Eager Fetching:** How to resolve $N+1$ using `JOIN FETCH`.
+* **Pagination Limitations with Fetch Joins:** Why applying database-level pagination (`Pageable` with `LIMIT/OFFSET`) fails when using `JOIN FETCH` on a `@OneToMany` collection, how Hibernate falls back to "in-memory pagination" (Warning: `HHH000104`), and how to fix it using `@BatchSize` or two-phase querying.
+* **Spring Data Projections:** Using interfaces or DTO records/classes to let Spring generate optimized `SELECT` statements pulling only necessary columns instead of full heavy entities.
+* **JPA First-Level Cache (Persistence Context):** Understanding entity lifecycle states and why database triggers (like auto-generating timestamps) are invisible to immediate subsequent `findById()` calls unless you explicitly flush and clear the entity manager (`entityManager.flush()` and `clear()`).
+* **The Deletion Anomaly:** Why `CascadeType.REMOVE` pulls heavy collection hierarchies into JVM memory to perform single sequential deletes, causing application-level performance drops, and how bulk `@Modifying` queries solve this.
+* **The `save()` vs. `merge()` Overhead:** Why calling `save()` on a new object with a manually assigned existing ID forces an implicit `SELECT` statement before triggering an `UPDATE`.
+* **Optimistic Locking Failure:** How the `@Version` annotation can fail in disconnected REST architectures when a frontend DTO fails to map the original version number back onto the loaded entity before a save operation.
+
+### 2. Spring Framework Core & AOP (Aspect-Oriented Programming)
+
+A major theme in the PDF is how Spring's proxy-based mechanism operates under the hood.
+
+* **The Self-Invocation/Internal Call Pitfall:** Understanding how Spring's AOP proxies intercept calls coming *outside* of a bean, why a public method calling a private helper method within the same bean bypasses proxies entirely, and why annotations like `@Transactional`, `@Async`, and `@Cacheable` will be silently ignored in this scenario.
+* **Proxy Precedence and Ordering:** How cross-cutting concerns interact when chained (e.g., how custom `@Around` aspects might wrap *inside* a transaction proxy by default, meaning database commit delays aren't measured by a custom timer unless `@Order` precedence is explicitly adjusted).
+* **Prototype-into-Singleton Bean Injection Problem:** Why autowiring a `@Scope("prototype")` bean directly into a `@Service` bean (which defaults to Singleton) causes the prototype instance to be resolved only once during startup and cached forever. Study fixes like Method Injection (`@Lookup`) and `ObjectFactory<T>`.
+* **Spring Cache Mutation Pitfall:** Why the default `ConcurrentMapCacheManager` stores literal memory references/pointers to cached objects rather than serialized values, and how mutating a returned collection dynamically pollutes the global cache for other users.
+
+### 3. Core Java Concurrency, Memory, and Collections
+
+The document addresses raw Java capabilities, garbage collection behaviors, and multi-threading execution details.
+
+* **Memory Leaks via Strong References:** How a standard `HashMap` retains strong references to objects preventing the Garbage Collector from cleaning them up, and why a `WeakHashMap` is used to implement auto-clearing caches.
+* **String Deduplication:** How the JVM handles dynamic runtime string generation on the heap, and using `String.intern()` to enforce lookup against the String Constant Pool to prevent heavy heap duplication.
+* **Parallel Stream Constraints:** Understanding terminal operations in Streams. Specifically, why `.findFirst()` enforces strict "encounter order" coordination among worker threads in a `parallelStream()`, slowing down performance, and why `.findAny()` is optimal for asynchronous alert matching.
+* **Synchronized Lock Monitors:** Concurrency traps concerning object memory addresses. For example, why locking on a wrapper type like an immutable `Boolean` fails because autoboxing (`isProcessing = true`) dynamically changes the object's reference behind the scenes, allowing multiple threads into a critical section.
+* **CompletableFuture Thread Poisoning and Exception Swallowing:** How background daemon threads in a `ForkJoinPool` handle unhandled `RuntimeExceptions` inside pipeline chains (transitioning to an "completed exceptionally" state) and how to handle them cleanly using `.exceptionally()`, `.handle()`, or `.whenComplete()`.
+* **Thread Starvation Deadlocks:** How a parent transaction block that spawns multiple `CompletableFuture.runAsync()` child tasks can trigger thread starvation deadlocks by exhausting the database connection pool (e.g., HikariCP) when children wait for connections while parents wait for children.
+
+### 4. Distributed Systems & Web Architecture Patterns
+
+You need to study industry-standard design choices for reliable microservice patterns.
+
+* **Circuit Breaker Pattern:** How libraries like Resilience4j trip to an "open" state during severe downstream degradation (e.g., high response latency) to fail-fast, preventing cascading Tomcat worker thread exhaustion.
+* **API Idempotency:** The use of client-generated custom `Idempotency-Key` headers in non-idempotent operations (like `POST /charges`) to avoid double-processing during mobile network disconnect retries.
+* **Saga Pattern vs. Two-Phase Commit (2PC):** Why 2PC/XA is heavily discouraged in cloud-native microservices due to its resource-locking bottlenecks, and how the Saga Pattern utilizes "compensating transactions" to bring distributed microservice databases back to eventual consistency.
+* **Distributed Rate Limiting:** Implementing token-bucket algorithms at the edge layer using Spring Cloud Gateway's `RequestRateLimiter` backed by Redis, combined with writing a custom `KeyResolver` to pull claims from JSON Web Tokens (JWT).
+* **Reactive WebFlux vs. Blockers:** Understanding how Spring WebFlux's non-blocking Event Loop architecture (e.g., Netty running minimal threads) completely freezes if legacy blocking operations like `JdbcTemplate` or blocking thread sleeps are executed directly inside a reactive stream.
+
+### 5. Web Layer Infrastructure, Security & Monitoring
+
+* **HTTP Stream Consumption Constraints:** Why HTTP request and response bodies are forward-only input/output streams that can only be read or written to once. You need to study how `HandlerInterceptor` fails to reread response streams, and how to use `ContentCachingRequestWrapper`/`ContentCachingResponseWrapper` via a Servlet `Filter` to implement custom audit logging.
+* **Spring Security Context Propagation in Async Threads:** Why `SecurityContextHolder` clears out its defaults (which are bound via `ThreadLocal`) when a new background thread is spawned using `@Async`, and how to explicitly configure it using `MODE_INHERITABLETHREADLOCAL` or a `DelegatingSecurityContextExecutor`.
+* **OAuth2 Resource Server Configuration:** Understanding the functional distinction between configuring an application via `oauth2Login()` (acts as an OAuth2 Client handling stateful session-based cookies) versus `http.oauth2ResourceServer().jwt()` which configures a stateless backend to validate bearer tokens against an Authorization Server's JWKS (JSON Web Key Set) endpoint.
+* **Micrometer Metric Cardinality:** Learning the operational dangers of "High Cardinality" in metrics tracking (e.g., Prometheus/Grafana). For example, why tagging a `Timer` with unbounded strings like `user_id` forces Micrometer to spawn infinite metric time-series objects in RAM, triggering an Out-of-Memory crash.
+* **Shallow ETags vs. Deep ETags:** Why Spring's `ShallowEtagHeaderFilter` executes the full backend controller code, calculates an MD5 hash of the final JSON string, and returns an HTTP 304 solely to save *network bandwidth* rather than server-side computational or database load.
+
+### 6. Spring Boot DevOps & Testing Lifecycle
+
+* **Spring Boot Testing Slices:** Understanding that narrow test slice annotations like `@WebMvcTest` or `@DataJpaTest` restrict component scanning exclusively to specific layers to speed up execution, and why dependent business layers (like `@Service` beans) are ignored unless explicitly declared via `@Import` or `@MockBean`.
+* **Spring TestContext ApplicationContext Caching:** How Spring's test framework caches initialized context classes across identical integration tests, and how this can clash with external infrastructure mechanisms like Docker Testcontainers if a container is explicitly shut down via JUnit lifecycle rules (`@Container`) while the context remains cached.
+* **Kubernetes Liveness vs. Readiness Probes:** Configuring Spring Boot Actuator groups in `application.yml` correctly. Knowing how to isolate external infrastructure drops (like RabbitMQ) to the readiness health check (to temporarily halt incoming HTTP traffic) rather than tripping the liveness probe (which instructs Kubernetes to forcefully terminate the pod container).
